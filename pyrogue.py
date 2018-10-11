@@ -1,22 +1,23 @@
-import pyglet
 from random import randint
 
-from source.settings import SETTINGS, player, Tiles, enemies
+import pyglet
+
+from source.settings import SETTINGS, player, enemies, Tile, TEXTURES, scenes
 from source.dungeons import dungeon
 import source.resources as res
 
 #   Utility Functions
-def X(x):
+def map_x(x):
     return x * (16) + 32
 
-def Y(y):
+def map_y(y):
     return SETTINGS['Height'] - 16 * (y + 1) - 16
 
-def convertIndex(c, f):
+def convert_index(c, f):
     return len(dungeon[0]) * f + c
 
-def checkExist(x, y):
-    if not Map[convertIndex(x, y)]:
+def check_exist(x, y):
+    if not zone[convert_index(x, y)]:
         return False
     if x < 0 or y < 0:
         return False
@@ -24,48 +25,43 @@ def checkExist(x, y):
         return False
     return True
 
-enemyMovs = [(0,1), (0,-1), (1,0), (-1,0)]
+enemy_movs = [(0,1), (0,-1), (1,0), (-1,0)]
 
 def enemyMove(index):
     mov = randint(0, 3)
-    newX = enemies[index]['X'] + enemyMovs[mov][0]
-    newY = enemies[index]['Y'] + enemyMovs[mov][1]
-    newIndex = convertIndex(newX, newY)
-    if checkExist(newX, newY) and Map[newIndex]['Char'] != '|' and Map[newIndex]['Char'] != '-' and Map[newIndex]['Char'] != '+':
-        if newX == player['X'] and newY == player['Y']:
-            dmg = randint(1, enemies[index]['Atk'])
-            player['HP'] -= dmg
+    newX = enemies[index].x + enemy_movs[mov][0]
+    newY = enemies[index].y + enemy_movs[mov][1]
+    newIndex = convert_index(newX, newY)
+    if check_exist(newX, newY) and zone[newIndex].char != '|' and zone[newIndex].char != '-' and zone[newIndex].char != '+':
+        if newX == player.x and newY == player.y:
+            dmg = randint(1, enemies[index].atk)
+            player.hp -= dmg
             print("You received", dmg, "points of damage")
-            return enemies[index]['X'], enemies[index]['Y']
+            return enemies[index].x, enemies[index].y
         return newX, newY
     else:
-        return enemies[index]['X'], enemies[index]['Y']
+        return enemies[index].x, enemies[index].y
 
 def makeDamage(index):
-    dmg = randint(1, player['Atk'])
-    enemies[index]['HP'] -= dmg
-    print("You made", dmg, "points of damage to", enemies[index]['Char'])
-    if enemies[index]['HP'] <= 0:
-        enemies[index]['Alive'] = False
-        enemies[index]['Sprite'].visible = False
-        print("You killed", enemies[index]['Char'])
+    dmg = randint(1, player.atk)
+    enemies[index].hp -= dmg
+    print("You made", dmg, "points of damage to", enemies[index].char)
+    if enemies[index].hp <= 0:
+        enemies[index].alive = False
+        enemies[index].set_visible(False)
+        print("You killed", enemies[index].char)
 
 def game_over():
     pyglet.app.exit()
 
 def visit(x, y):
-    if(checkExist(x, y)):
-        Map[convertIndex(x, y)]['Visited'] = True
-        Map[convertIndex(x, y)]['Sprite'].visible = True
+    if(check_exist(x, y)):
+        zone[convert_index(x, y)].visited = True
+        zone[convert_index(x, y)].set_visible(True)
 
 window = pyglet.window.Window(SETTINGS['Width'], SETTINGS['Height'], visible = False)
 window.set_location(50, 50)
-scenes = {
-    'menu_batch' : pyglet.graphics.Batch(),
-    'game_batch' : pyglet.graphics.Batch(),
-    'enemies' : pyglet.graphics.Batch(),
-    'gameover_batch' : pyglet.graphics.Batch()
-}
+
 #-------------------------------------------------------------------------------------------------
 #   Main Menu
 #-------------------------------------------------------------------------------------------------
@@ -129,36 +125,36 @@ def begin_main_menu():
 #   Game
 #-------------------------------------------------------------------------------------------------
 
-player['Sprite'] = pyglet.sprite.Sprite(player['Texture'], X(2), Y(2))
+player.sprite = pyglet.sprite.Sprite(TEXTURES['@'], map_x(2), map_y(2))
 
 ui_items = {
-    'Name Label' : pyglet.text.Label(player['Name'],
+    'Name Label' : pyglet.text.Label(player.name,
                                 font_name = SETTINGS['Font'],
                                 font_size = 30,
-                                x = 16, y = Y(len(dungeon)) - 40,
+                                x = 16, y = map_y(len(dungeon)) - 40,
                                 anchor_x='left', anchor_y='baseline',
                                 color = (255, 255, 255, 255),
                                 batch = scenes["game_batch"]),
     'HP' : pyglet.text.Label("HP:",
                                 font_name = SETTINGS['Font'],
                                 font_size = 30,
-                                x = 16, y = Y(len(dungeon)) - 80,
+                                x = 16, y = map_y(len(dungeon)) - 80,
                                 anchor_x='left', anchor_y='baseline',
                                 color = (255, 255, 255, 255),
                                 batch = scenes["game_batch"]),
-    'HP Counter' : pyglet.text.Label(str(player['HP']) + " % ",
+    'HP Counter' : pyglet.text.Label(str(player.hp) + " % ",
                                 font_name = SETTINGS['Font'],
                                 font_size = 30,
-                                x = 250, y = Y(len(dungeon)) - 80,
+                                x = 250, y = map_y(len(dungeon)) - 80,
                                 anchor_x='right', anchor_y='baseline',
                                 color = (255, 255, 255, 255),
                                 batch = scenes["game_batch"])
 }
-#Map Wrapper
-dr = [X(len(dungeon[0])), Y(len(dungeon))]
-dl = [16, Y(len(dungeon))]
-ur = [X(len(dungeon[0])), Y(0) + 16]
-ul = [16, Y(0) + 16]
+#zone Wrapper
+dr = [map_x(len(dungeon[0])), map_y(len(dungeon))]
+dl = [16, map_y(len(dungeon))]
+ur = [map_x(len(dungeon[0])), map_y(0) + 16]
+ul = [16, map_y(0) + 16]
 vertex_list = pyglet.graphics.vertex_list_indexed(8,
 [0, 3, 4, 3, 4, 7, 3, 7, 2, 2, 7, 6, 2, 6, 5, 5, 2, 1, 5, 1, 0, 0, 4, 5],
 ('v2i', (dl[0], dl[1],               #0
@@ -171,30 +167,29 @@ vertex_list = pyglet.graphics.vertex_list_indexed(8,
          ul[0] + 4, ul[1] - 4,       #7
          )))
 
-Map = []
+zone = []
 
 def generateMap():
     for i in range(len(dungeon)):
         for j in range(len(dungeon[i])):
             tile = None
-            aux = dungeon[i][j]
-            if aux != " ":
-                tile = Tiles[aux].copy()
-                tile['Sprite'] = pyglet.sprite.Sprite(tile['Texture'], X(j), Y(i), batch = scenes["game_batch"])
-                tile['Sprite'].visible = False
-            Map.append(tile)
+            char = dungeon[i][j]
+            if char != " ":
+                tile = Tile(char, map_x(j), map_y(i), scenes["game_batch"])
+            zone.append(tile)
 
     for i in enemies.keys():
-        enemies[i]['Sprite'] =  pyglet.sprite.Sprite(enemies[i]['Texture'], X(enemies[i]['X']), Y(enemies[i]['Y']), batch = scenes["enemies"])
-        enemies[i]['Sprite'].visible = False
+        #enemies[i].sprite =  pyglet.sprite.Sprite(TEXTURES[i], map_x(enemies[i].x), map_y(enemies[i].y), batch = scenes["enemies"])
+        enemies[i].set_visible(False)
 
 generateMap()
 
 def update():
-    player['Sprite'].x = X(player['X'])
-    player['Sprite'].y = Y(player['Y'])
-    tx = player['X']
-    ty = player['Y']
+    #player.sprite.x = map_x(player.x)
+    #player.sprite.y = map_y(player.y)
+    player.update()
+    tx = player.x
+    ty = player.y
     visit(tx, ty)
     visit(tx, ty - 1)
     visit(tx, ty + 1)
@@ -204,42 +199,43 @@ def update():
     visit(tx + 1, ty)
     visit(tx + 1, ty - 1)
     visit(tx + 1, ty + 1)
-    if player['HP'] < 0:
-        player['HP'] = 0
+    if player.hp < 0:
+        player.hp = 0
         game_over()
-    if(player['HP'] < 25):
+    if(player.hp < 25):
         ui_items['HP Counter'].color  = (255, 0, 0, 255)
-    ui_items['HP Counter'].text = str(player['HP']) + " % "
+    ui_items['HP Counter'].text = str(player.hp) + " % "
     for i in enemies.keys():
-        if enemies[i]['Alive']:
-            enemies[i]['X'], enemies[i]['Y'] = enemyMove(i)
-            enemies[i]['Sprite'].x = X(enemies[i]['X'])
-            enemies[i]['Sprite'].y = Y(enemies[i]['Y'])
-            if Map[convertIndex(enemies[i]['X'], enemies[i]['Y'])]['Visited']:
-                enemies[i]['Sprite'].visible = True
+        if enemies[i].alive:
+            enemies[i].x, enemies[i].y = enemyMove(i)
+            enemies[i].update()
+            #enemies[i].sprite.x = map_x(enemies[i].x)
+            #enemies[i].sprite.y = map_y(enemies[i].y)
+            if zone[convert_index(enemies[i].x, enemies[i].y)].visited:
+                enemies[i].set_visible(True)
             else:
-                enemies[i]['Sprite'].visible = False
+                enemies[i].set_visible(False)
 
 def game_on_draw():
     window.clear()
     scenes['game_batch'].draw()
-    player['Sprite'].draw()
+    player.sprite.draw()
     scenes['enemies'].draw()
     #HP Bar
     pyglet.graphics.draw_indexed(4, pyglet.gl.GL_TRIANGLES,
     [0, 1, 2, 0, 2, 3],
-    ('v2i', (250, Y(len(dungeon)) - 80,                                               #DOWN-LEFT
-             max(0, 250 + 500 - 5 * (100 - player['HP'])), Y(len(dungeon)) - 80,      #DOWN rIGHT
-             max(0, 250 + 500 - 5 * (100 - player['HP'])), Y(len(dungeon)) - 50,      #UP RIGHT
-             250, Y(len(dungeon)) - 50)))                                             #UP LEFT
+    ('v2i', (250, map_y(len(dungeon)) - 80,                                               #DOWN-LEFT
+             max(0, 250 + 500 - 5 * (100 - player.hp)), map_y(len(dungeon)) - 80,      #DOWN rIGHT
+             max(0, 250 + 500 - 5 * (100 - player.hp)), map_y(len(dungeon)) - 50,      #UP RIGHT
+             250, map_y(len(dungeon)) - 50)))                                             #UP LEFT
     vertex_list.draw(pyglet.gl.GL_TRIANGLES)
 
 def game_on_key_press(symbol, modifiers):
     pass
 
 def game_on_key_release(symbol, modifiers):
-    newY = player['Y']
-    newX = player['X']
+    newY = player.y
+    newX = player.x
     x_mov = 0
     if symbol == pyglet.window.key.UP:
         newY -= 1
@@ -249,25 +245,24 @@ def game_on_key_release(symbol, modifiers):
         newY += 1
     elif symbol == pyglet.window.key.LEFT:
         newX -= 1
-    newIndex = convertIndex(newX, newY)
-    if checkExist(newX, newY) and Map[newIndex]['Char'] != '|' and Map[newIndex]['Char'] != '-':
-        if Map[newIndex]['Char'] == '+':
-            if not Map[newIndex]['Opened']:
-                Map[newIndex]['Opened'] = True
-                Map[newIndex]['Texture'] = res.dungeon_texture[4]
-                Map[newIndex]['Sprite'] = pyglet.sprite.Sprite(res.dungeon_texture[4], X(newX), Y(newY), batch = scenes['game_batch'])
+    newIndex = convert_index(newX, newY)
+    if check_exist(newX, newY) and zone[newIndex].char != '|' and zone[newIndex].char != '-':
+        if zone[newIndex].char == '+':
+            if not zone[newIndex].opened:
+                zone[newIndex].opened = True
+                zone[newIndex].set_texture(TEXTURES['*'])
             else:
-                player['X'] = newX
-                player['Y'] = newY
+                player.x = newX
+                player.y = newY
         else:
             for i in enemies.keys():
-                if newX == enemies[i]['X'] and newY == enemies[i]['Y']:
+                if newX == enemies[i].x and newY == enemies[i].y:
                     makeDamage(i)
-                    if enemies[i]['Alive']:
-                        newX = player['X']
-                        newY = player['Y']
-            player['X'] = newX
-            player['Y'] = newY
+                    if enemies[i].alive:
+                        newX = player.x
+                        newY = player.y
+            player.x = newX
+            player.y = newY
         update()
 
 def input_name():
